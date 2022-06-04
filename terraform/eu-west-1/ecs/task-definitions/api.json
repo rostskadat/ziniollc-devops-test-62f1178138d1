@@ -1,0 +1,51 @@
+[
+    {
+        "name": "api",
+        "image": "${image}",
+        "cpu": 1024,
+        "memory": 2048,
+        "essential": true,
+        "environment": [
+            {
+                "name": "MYSQL_HOST",
+                "value": "${mysql_host}"
+            },
+            {
+                "name": "MYSQL_PORT",
+                "value": "${mysql_port}"
+            },
+            {
+                "name": "MYSQL_DBNAME",
+                "value": "${mysql_dbname}"
+            },
+            {
+                "name": "MYSQL_USER",
+                "value": "${mysql_user}"
+            }
+        ],
+        "secrets": [
+            {
+                "name": "MYSQL_PASSWORD",
+                "valueFrom": "${mysql_password_arn}"
+            },
+            {
+                "name": "MYSQL_ROOT_PASSWORD",
+                "valueFrom": "${mysql_root_password_arn}"
+            }
+        ],
+        "portMappings": [
+            {
+                "containerPort": ${container_port},
+                "hostPort": ${container_port}
+            }
+        ],
+        "logConfiguration": {
+            "logDriver": "awslogs",
+            "options": {
+                "awslogs-region": "${aws_region}",
+                "awslogs-group": "${aws_log_group}",
+                "awslogs-stream-prefix": "api"
+            }
+        }
+    }
+]

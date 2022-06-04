@@ -1,0 +1,28 @@
+{
+    "Version": "2012-10-17",
+    "Id": "AllowGetSecretValue",
+    "Statement": [
+      {
+        "Sid": "AllowGetSecretValue",
+        "Effect": "Allow",
+        "Action": [
+          "secretsmanager:GetSecretValue"
+        ],
+        "Resource": ${jsonencode(secret_arns)}
+      },
+      {
+        "Sid": "AllowGetECRImage",
+        "Effect": "Allow",
+        "Action": [
+          "ecr:GetAuthorizationToken",
+          "ecr:BatchCheckLayerAvailability",
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:BatchGetImage",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
+        ],
+        "Resource": "*" 
+      }
+    ]
+  }
+  

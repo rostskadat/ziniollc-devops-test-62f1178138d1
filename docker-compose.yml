@@ -1,0 +1,31 @@
+version: '3.3'
+networks:
+  app-network:
+    driver: bridge
+services:
+  api:
+    build:
+      context: api/.
+      dockerfile: Dockerfile
+    container_name: api
+    restart: unless-stopped
+    ports:
+      - "9501:9501"
+    volumes:
+      - ./:/app
+    command: api/server.php
+    working_dir: /app
+    networks:
+      - app-network
+  db:
+    image: mysql:5.7
+    restart: always
+    ports:
+      - "3306:3306"
+    networks:
+      - app-network
+    environment:
+      MYSQL_DATABASE: 'db'
+      MYSQL_USER: 'user'
+      MYSQL_PASSWORD: 'password'
+      MYSQL_ROOT_PASSWORD: 'password'

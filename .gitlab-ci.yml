@@ -1,0 +1,28 @@
+image: docker:stable
+
+services:
+  - docker:dind
+
+stages:
+  - build
+  - deploy
+
+build api:
+  stage: build
+  before_script:
+    # make sure the repository does exist before building
+    - aws --region eu-west-1 ecr describe-repositories --repository-names "$REPO_NAME/$IMAGE_NAME" > /dev/null 2>&1 || aws --region eu-west-1 ecr create-repository --repository-name "$REPO_NAME/$IMAGE_NAME"
+    # The command below is given by executing 'aws ecr get-login --no-include-email --region eu-west-1'
+    # - echo "$DOCKER_PASSWORD" | docker login --username "$DOCKER_USERNAME" --password-stdin https://$DOCKER_URL
+    - sudo $(aws --region eu-west-1 ecr get-login --no-include-email)
+  script:
+    - sudo docker build --rm --tag $REPO_URL/$REPO_NAME/$IMAGE_NAME:$CI_COMMIT_SHA $IMAGE_NAME
+    - sudo docker tag $REPO_URL/$REPO_NAME/$IMAGE_NAME:$CI_COMMIT_SHA $REPO_URL/$REPO_NAME/$IMAGE_NAME:$CI_COMMIT_REF_NAME
+    - sudo docker tag $REPO_URL/$REPO_NAME/$IMAGE_NAME:$CI_COMMIT_SHA $REPO_URL/$REPO_NAME/$IMAGE_NAME:latest
+    - sudo docker push $REPO_URL/$REPO_NAME/$IMAGE_NAME:latest
+    - sudo docker push $REPO_URL/$REPO_NAME/$IMAGE_NAME:$CI_COMMIT_REF_NAME
+  variables:
+    # Make sure to replace your account id
+    REPO_URL: <account_id>.dkr.ecr.eu-west-1.amazonaws.com
+    REPO_NAME: ziniollc-devops-test-62f1178138d1
+    IMAGE_NAME: api
