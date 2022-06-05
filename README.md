@@ -66,11 +66,13 @@ The code is located in the file [.gitlab-ci.yml](.gitlab-ci.yml). It is an extre
 2. Upload the built image to the ECR repository
 3. Deploy the docker image to the ECS Cluster
 
+It is a basic pipeline that has a certain number of restrictions such as for instance the fact that it does not provide different behavior according to branches on which the commit happen. It could be easily improved upon to implement such behavior. It also points to only one ECS cluster. In a multi branch context, one might want to point to different cluster such as development and production cluster.
+
 # Evidences
 
-* RDS instance
+* Swoole server running
 
-![RDS instance](images/RDS_instance.png)
+![Swoole server running](images/SwooleServer.png)
 
 # Improvments
 
