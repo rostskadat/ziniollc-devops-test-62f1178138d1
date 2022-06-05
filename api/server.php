@@ -7,7 +7,7 @@ use Swoole\Database\MysqliConfig;
 use Swoole\Database\MysqliPool;
 use Swoole\Runtime;
 
-$mysql_host = getenv('MYSQL_HOST') ?: "terraform-20220604185804022200000001.cgbdhswg43m4.eu-west-1.rds.amazonaws.com";
+$mysql_host = getenv('MYSQL_HOST') ?: "db";
 $mysql_port = getenv('MYSQL_PORT') ?: "3306";
 $mysql_dbname = getenv('MYSQL_DBNAME') ?: "dbname";
 $mysql_username = getenv('MYSQL_USERNAME') ?: "user";
