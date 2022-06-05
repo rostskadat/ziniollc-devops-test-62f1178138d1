@@ -3,6 +3,23 @@ image: docker:stable
 services:
   - docker:dind
 
+# NOTE: you must configure the group / project CICD variable to contain the
+#   AWS credentials. Just set the following variable with the value for the
+#   IAM user you created during the bootstrap phase.
+#   - AWS_ACCESS_KEY_ID=
+#   - AWS_SECRET_ACCESS_KEY=
+#   Furthermore you must make sure that the REPO_NAME and CLUSTER_NAME also
+#   match the value in your terraform template
+variables:
+  AWS_REGION: "eu-west-1"
+  # Make sure to replace your account id
+  REPO_URL: <account_id>.dkr.ecr.eu-west-1.amazonaws.com
+  REPO_NAME: ziniollc-devops-test-62f1178138d1
+  CLUSTER_NAME: ziniollc-devops-test-62f1178138d1
+
+# There are 2 main stages:
+# - the build stage build the docker image and upload it to the ECR repository
+# - the deploy stage make sure that all tasks in the ECS cluster are stopped in order to force a new deployment
 stages:
   - build
   - deploy
@@ -16,13 +33,22 @@ build api:
     # - echo "$DOCKER_PASSWORD" | docker login --username "$DOCKER_USERNAME" --password-stdin https://$DOCKER_URL
     - sudo $(aws --region eu-west-1 ecr get-login --no-include-email)
   script:
-    - sudo docker build --rm --tag $REPO_URL/$REPO_NAME/$IMAGE_NAME:$CI_COMMIT_SHA $IMAGE_NAME
-    - sudo docker tag $REPO_URL/$REPO_NAME/$IMAGE_NAME:$CI_COMMIT_SHA $REPO_URL/$REPO_NAME/$IMAGE_NAME:$CI_COMMIT_REF_NAME
-    - sudo docker tag $REPO_URL/$REPO_NAME/$IMAGE_NAME:$CI_COMMIT_SHA $REPO_URL/$REPO_NAME/$IMAGE_NAME:latest
-    - sudo docker push $REPO_URL/$REPO_NAME/$IMAGE_NAME:latest
-    - sudo docker push $REPO_URL/$REPO_NAME/$IMAGE_NAME:$CI_COMMIT_REF_NAME
-  variables:
-    # Make sure to replace your account id
-    REPO_URL: <account_id>.dkr.ecr.eu-west-1.amazonaws.com
-    REPO_NAME: ziniollc-devops-test-62f1178138d1
-    IMAGE_NAME: api
+    # This is a really simple build that only buid and upload the docker image
+    # to the ECR repository. It does not take care of git tags, releases, 
+    # versions, branches, etc...
+    - |
+      [ -z "${AWS_ACCESS_KEY_ID}" ] && echo "Invalid pipeline. Missing AWS_ACCESS_KEY_ID CICD variable" && exit 1
+      [ -z "${AWS_SECRET_ACCESS_KEY}" ] && echo "Invalid pipeline. Missing AWS_SECRET_ACCESS_KEY CICD variable" && exit 1
+    - sudo docker build --rm --tag $REPO_URL/$REPO_NAME:$CI_COMMIT_SHA api
+    - sudo docker tag $REPO_URL/$REPO_NAME:$CI_COMMIT_SHA $REPO_URL/$REPO_NAME:latest
+    - sudo docker push $REPO_URL/$REPO_NAME:latest
+
+deploy api:
+  stage: deploy
+  script:
+    - |
+      [ -z "${AWS_ACCESS_KEY_ID}" ] && echo "Invalid pipeline. Missing AWS_ACCESS_KEY_ID CICD variable" && exit 1
+      [ -z "${AWS_SECRET_ACCESS_KEY}" ] && echo "Invalid pipeline. Missing AWS_SECRET_ACCESS_KEY CICD variable" && exit 1
+    - for task_arn in $(aws --region eu-west-1 ecs list-tasks --cluster $CLUSTER_NAME | jq -r ".taskArns|@tsv"); do
+        echo "Stopping $task_arn ..."
+        aws aws --region eu-west-1 ecs stop-task --cluster $CLUSTER_NAME --task $task_arn --reason "New version $CI_COMMIT_SHA available"
