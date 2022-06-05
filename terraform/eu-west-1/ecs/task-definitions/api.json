@@ -2,6 +2,7 @@
     {
         "name": "api",
         "image": "${image}",
+        "command": ["/app/server.php"],
         "cpu": 1024,
         "memory": 2048,
         "essential": true,

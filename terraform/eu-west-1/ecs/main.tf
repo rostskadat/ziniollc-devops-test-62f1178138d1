@@ -66,7 +66,7 @@ resource "aws_ecs_task_definition" "api_task_definition" {
     mysql_user              = var.mysql_username,
     mysql_password_arn      = var.mysql_password_arn,
     mysql_root_password_arn = var.mysql_root_password_arn
-    container_port          = var.container_port
+    container_port          = var.api_port
     aws_region              = data.aws_region.current.name
     aws_log_group           = aws_cloudwatch_log_group.ecs_log_group.name
   })
@@ -82,80 +82,14 @@ resource "aws_ecs_service" "api_service" {
   force_new_deployment = true
 
   load_balancer {
-    target_group_arn = aws_lb_target_group.api_target_group.arn
+    target_group_arn = var.api_target_group_arn
     container_name   = "api"
-    container_port   = var.container_port
+    container_port   = var.api_port
   }
 
   network_configuration {
     assign_public_ip = false
     security_groups  = var.api_security_groups
     subnets          = var.api_subnet_ids
-  }
-}
-
-resource "aws_s3_bucket" "lb_logs" {
-  bucket = "ziniollc-devops-test-62f1178138d1-lb-logs"
-}
-
-resource "aws_s3_bucket_server_side_encryption_configuration" "lb_logs" {
-  bucket = aws_s3_bucket.lb_logs.bucket
-
-  rule {
-    apply_server_side_encryption_by_default {
-      sse_algorithm = "AES256"
-    }
-  }
-}
-
-# Ref: https://docs.aws.amazon.com/elasticloadbalancing/latest/application/load-balancer-access-logs.html#access-logging-bucket-permissions
-resource "aws_s3_bucket_policy" "allow_log_delivery" {
-  bucket = aws_s3_bucket.lb_logs.id
-  policy = templatefile("${path.module}/iam/lb_acess_logs_bucket_policy.json", {
-    lb_acess_logs_bucket_arn = aws_s3_bucket.lb_logs.arn
-    log_prefix               = "api_lb/access-logs"
-    elb_account_id           = 156460612806
-    aws_account_id           = data.aws_caller_identity.current.account_id
-  })
-}
-
-resource "aws_lb" "api_lb" {
-  name_prefix        = "zinio"
-  internal           = false
-  load_balancer_type = "application"
-  security_groups    = var.lb_security_groups
-  subnets            = var.frontend_subnet_ids
-
-  access_logs {
-    bucket  = aws_s3_bucket.lb_logs.bucket
-    prefix  = "api_lb/access-logs"
-    enabled = true
-  }
-
-}
-
-resource "aws_lb_target_group" "api_target_group" {
-  name_prefix          = "zinio"
-  port                 = var.container_port
-  protocol             = "HTTP"
-  target_type          = "ip"
-  vpc_id               = var.vpc_id
-  deregistration_delay = 30
-
-  health_check {
-    enabled = true
-    path    = "/"
-    matcher = "200-499"
-  }
-}
-
-resource "aws_lb_listener" "front_end" {
-  load_balancer_arn = aws_lb.api_lb.arn
-  port              = 80
-  protocol          = "HTTP"
-
-  default_action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.api_target_group.arn
   }
 }
