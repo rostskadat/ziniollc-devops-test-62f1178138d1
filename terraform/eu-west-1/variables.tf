@@ -22,3 +22,10 @@ variable "mysql_password" {
   type        = string
   sensitive   = true
 }
+
+variable "api_port" {
+  description = "The port of the api container."
+  default     = 9501
+  nullable    = false
+  type        = number
+}

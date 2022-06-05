@@ -3,7 +3,8 @@ module "vpc" {
   source = "./vpc"
 }
 
-# we then create the ECR repository where the docker image will be stored
+# we then create the ECR repository where the docker image will be stored.
+# It could be argued that should be created during the bootstrap process.
 module "ecr" {
   source = "./ecr"
 }
@@ -33,6 +34,8 @@ resource "aws_security_group" "lb_security_group" {
   description = "Allow ELB traffic"
   vpc_id      = module.vpc.vpc_id
 
+  # when we have a domain name and a hosted zone, we can create an ACM certificate
+  # and use HTTPS
   ingress {
     description      = "HTTP traffic"
     from_port        = 80
@@ -62,8 +65,8 @@ resource "aws_security_group" "api_security_group" {
 
   ingress {
     description = "Swoole traffic"
-    from_port   = 9501
-    to_port     = 9501
+    from_port   = var.api_port
+    to_port     = var.api_port
     protocol    = "tcp"
     cidr_blocks = flatten([
       for az, subnet in module.vpc.frontend_subnets : [
@@ -92,8 +95,8 @@ resource "aws_security_group" "db_security_group" {
 
   ingress {
     description     = "MySQL traffic"
-    from_port       = 3306
-    to_port         = 3306
+    from_port       = var.mysql_port
+    to_port         = var.mysql_port
     protocol        = "tcp"
     security_groups = [aws_security_group.api_security_group.id]
   }
@@ -126,10 +129,9 @@ module "rds" {
   vpc_security_group_ids = [aws_security_group.db_security_group.id]
 }
 
-# we then create the ECS cluster (with Fargate provider) where the 
-# containers will be executed
-module "ecs" {
-  source = "./ecs"
+# Then I create an ELB to be able to access the microservice.
+module "elb" {
+  source = "./elb"
 
   vpc_id = module.vpc.vpc_id
   frontend_subnet_ids = flatten([
@@ -137,14 +139,25 @@ module "ecs" {
       subnet.id
     ]
   ])
+  lb_security_groups = [aws_security_group.lb_security_group.id]
+  api_port           = var.api_port
+}
+
+
+# we then create the ECS cluster (with Fargate provider) where the 
+# containers will be executed
+module "ecs" {
+  source = "./ecs"
+
   api_subnet_ids = flatten([
     for az, subnet in module.vpc.api_subnets : [
       subnet.id
     ]
   ])
-  lb_security_groups  = [aws_security_group.lb_security_group.id]
-  api_security_groups = [aws_security_group.api_security_group.id]
-  api_repository_url  = module.ecr.repository_url
+  api_security_groups  = [aws_security_group.api_security_group.id]
+  api_repository_url   = module.ecr.repository_url
+  api_port             = var.api_port
+  api_target_group_arn = module.elb.target_group_arn
   # NOTE: we always use the resource attributes and not the variables
   mysql_host              = module.rds.address
   mysql_port              = module.rds.port
@@ -153,5 +166,5 @@ module "ecs" {
   mysql_password_arn      = aws_secretsmanager_secret.mysql_password.id
   mysql_root_password_arn = aws_secretsmanager_secret.mysql_password.arn
 
-  depends_on = [module.rds]
+  depends_on = [module.rds, module.elb]
 }
