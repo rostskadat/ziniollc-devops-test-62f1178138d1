@@ -25,4 +25,6 @@ RUN chmod +x /usr/local/bin/dumb-init
 
 RUN apt-get autoremove -y && rm -rf /var/lib/apt/lists/*
 
-ENTRYPOINT ["/usr/local/bin/dumb-init", "--", "php"]
+COPY server.php /app/server.php
+
+ENTRYPOINT ["/usr/local/bin/dumb-init", "--", "php", "/app/server.php"]
